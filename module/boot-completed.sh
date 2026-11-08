@@ -410,6 +410,11 @@ fi
 # Hide third party apps
 if [[ "${config_hide_third_party_apps}" == "1" ]]; then
 	packages=$(cmd package list packages -3 | awk -F: '{out = out (out ? "," : "") $2} END {print out}')
+	# Add any explicitly listed hidden system apps whose UID would otherwise
+	# leak through getpriority (they are not in the -3 third-party list).
+	if [[ -n "${config_priority_uid_extra_packages}" ]]; then
+		packages="${packages}${packages:+,}${config_priority_uid_extra_packages}"
+	fi
 	${SUSFS_BIN} set_priority_uid_filter "${packages}"
 fi
 

@@ -12,6 +12,11 @@ config_shrink_buffer_size=1
 config_hide_custom_recovery=1
 config_hide_ksu_directories=1
 config_hide_third_party_apps=1
+# Extra packages added to the getpriority UID filter alongside the
+# third-party list, comma-separated. Use this for ROM/system apps that are
+# hidden at the package level but still run (so their UID would otherwise
+# leak through getpriority).
+config_priority_uid_extra_packages=''
 config_enable_avc_log_spoofing=1
 config_hide_sus_mnts_for_non_su_procs=1
 config_fix_data_local_tmp_inconsistencies=1

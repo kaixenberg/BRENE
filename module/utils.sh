@@ -59,7 +59,11 @@ spoof_system_properties() {
 	if_prop_exits_resetprop_n "ro.secure" "1"
 	if_prop_exits_resetprop_n "ro.debuggable" "0"
 	if_prop_exits_resetprop_n "ro.adb.secure" "1"
-	if_prop_exits_resetprop_n "persist.sys.usb.config" "mtp"
+	# Keep the USB/adb state honest when USB debugging is enabled, so the
+	# reported adbd lifecycle does not contradict the live adbd socket.
+	if [[ "${config_usb_debugging}" != "1" ]]; then
+		if_prop_exits_resetprop_n "persist.sys.usb.config" "mtp"
+	fi
 	if_prop_exits_resetprop_n "ro.boot.verifiedbootstate" "green"
 	if_prop_exits_resetprop_n "ro.boot.flash.locked" "1"
 	if_prop_exits_resetprop_n "ro.boot.veritymode" "enforcing"
@@ -78,8 +82,10 @@ spoof_system_properties() {
 	if_prop_exits_resetprop_n "vendor.boot.verifiedbootstate" "green"
 	if_prop_exits_resetprop_n "ro.vendor.boot.warranty_bit" "0"
 	if_prop_exits_resetprop_n "ro.vendor.warranty_bit" "0"
-	if_prop_exits_resetprop_n "init.svc.adbd" "stopped"
-	if_prop_exits_resetprop_n "init.svc_debug_pid.adbd" ""
+	if [[ "${config_usb_debugging}" != "1" ]]; then
+		if_prop_exits_resetprop_n "init.svc.adbd" "stopped"
+		if_prop_exits_resetprop_n "init.svc_debug_pid.adbd" ""
+	fi
 	if_prop_exits_resetprop_n "ro.oem_unlock_supported" "0"
 
 	# Realme
@@ -157,6 +163,18 @@ brene_sus_map() {
 	if ${SUSFS_BIN} add_sus_map "$1" && [[ "${config_brene_logs}" == "1" ]]; then
 		echo "[sus_map]: $1" >> "${PERSISTENT_DIR}/logs.txt"
 	fi
+}
+brene_hide_rom_path() {
+	# Framework/overlay resource APKs are mmap'd AND opened by every app,
+	# including app_zygote during preload. Hiding them from open()/stat()
+	# (sus_path) makes that preload fail with ENOENT, which aborts the
+	# zygote (seen as "Failed open(... .apk)"). Hide those from /proc maps
+	# only, which is the signal detectors actually scan, and leave the file
+	# openable. Everything else keeps the full path hiding.
+	case "$1" in
+		*.apk) brene_sus_map "$1" ;;
+		*) brene_sus_map "$1"; brene_sus_path_loop "$1" ;;
+	esac
 }
 brene_set_uname() {
 	if ${SUSFS_BIN} set_uname "$1" "$2" && [[ "${config_brene_logs}" == "1" ]]; then
